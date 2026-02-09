@@ -75,14 +75,14 @@ return [
             'models' => require __DIR__ . env('OPENAI_MODEL_LIST_DIR', '/model_lists/openai_models.php'),
         ],
         'gwdg' => [
-            'active' => env('GWDG_ACTIVE', true),
+            'active' => env('GWDG_ACTIVE', false),
             'api_key' => env('GWDG_API_KEY'),
             'api_url' => env('GWDG_API_URL', 'https://chat-ai.academiccloud.de/v1/chat/completions'),
             'ping_url' => env('GWDG_PING_URL', 'https://chat-ai.academiccloud.de/v1/models'),
             'models' => require __DIR__ . env('GWDG_MODEL_LIST_DIR', '/model_lists/gwdg_models.php'),
         ],
         'google' => [
-            'active' => env('GOOGLE_ACTIVE', true),
+            'active' => env('GOOGLE_ACTIVE', false),
             'api_key' => env('GOOGLE_API_KEY'),
             'api_url' => env('GOOGLE_API_URL', 'https://generativelanguage.googleapis.com/v1beta/models/'),
             'stream_url' => env('GOOGLE_STREAM_URL', 'https://generativelanguage.googleapis.com/v1beta/models/'),
@@ -90,7 +90,7 @@ return [
             'models' => require __DIR__ . env('GOOGLE_MODEL_LIST_DIR', '/model_lists/google_models.php'),
         ],
         'ollama' => [
-            'active' => env('OLLAMA_ACTIVE', false),
+            'active' => env('OLLAMA_ACTIVE', true),
             'api_url' => env('OLLAMA_API_URL', 'http://localhost:11434/api/chat'),
             'ping_url' => env('OLLAMA_API_URL', 'http://localhost:11434/api/tags'),
             'models' => require __DIR__ . env('OLLAMA_MODEL_LIST_DIR', '/model_lists/ollama_models.php'),
