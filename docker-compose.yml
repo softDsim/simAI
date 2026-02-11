@@ -120,9 +120,38 @@ services:
         ports:
             - ${DOCKER_PROJECT_IP:-127.0.0.1}:1025:1025
             - ${DOCKER_PROJECT_IP:-127.0.0.1}:${MAILHOG_PORT:-8025}:8025
+
+    lldap:
+        container_name: ${PROJECT_NAME}-lldap
+        image: lldap/lldap:latest
+        ports:
+            - "3890:3890"   # LDAP Port
+            - "17170:17170" # Web-Interface
+        environment:
+            - LLDAP_JWT_SECRET=IhrGeheimesSecret # Ändern!
+            - LLDAP_KEY_SEED=NochEinGeheimesSecret # Ändern!
+            - LLDAP_LDAP_USER_PASS=adminpassword
+            - LLDAP_LDAP_BASE_DN=dc=example,dc=com
+        volumes:
+            - lldap_data:/data
+        restart: unless-stopped
+
+    qdrant:
+        container_name: ${PROJECT_NAME}-qdrant
+        image: qdrant/qdrant
+        ports:
+            - "6333:6333"
+        volumes:
+            - qdrant_data:/qdrant/storage
+        restart: unless-stopped
 volumes:
     php_socket: { }
     mysql_data:
         driver: local
     redis_data:
         driver: local
+    lldap_data:
+        driver: local
+    qdrant_data:
+         driver: local
+
