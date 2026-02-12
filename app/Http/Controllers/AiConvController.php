@@ -18,7 +18,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
-
 class AiConvController extends Controller
 {
     protected $aiConvService;
@@ -26,9 +25,7 @@ class AiConvController extends Controller
     protected $contentValidator;
     protected $attachmentService;
 
-    public function __construct(
-            AttachmentService $attachmentService,
-            AiConvService $aiConvService)
+    public function __construct(AttachmentService $attachmentService, AiConvService $aiConvService)
     {
         $this->aiConvService = $aiConvService;
         $this->messageHandler = app(MessageHandlerFactory::class)->create('private');
@@ -36,60 +33,37 @@ class AiConvController extends Controller
         $this->attachmentService = $attachmentService;
     }
 
-
-    ///CREATE NEW CONVERSATION
     public function create(Request $request): JsonResponse
     {
         $validatedData = $request->validate([
-            'conv_name'     => 'nullable|string|max:255',
+            'conv_name' => 'nullable|string|max:255',
             'system_prompt' => 'nullable|string'
         ]);
-
         $conv = $this->aiConvService->create($validatedData);
-
-        return response()->json([
-            'success' => true,
-            'conv'    => $conv,
-        ], 201);
+        return response()->json(['success' => true, 'conv' => $conv], 201);
     }
 
-
-    /// RETURNS CONVERSATION DATA WHICH WILL BE DYNAMICALLY LOADED ON THE PAGE
     public function load($slug): JsonResponse
     {
         $convData = $this->aiConvService->load($slug);
-        return response()->json([
-            'success' => true,
-            'data' => $convData,
-        ]);
+        return response()->json(['success' => true, 'data' => $convData]);
     }
-
 
     public function update(Request $request, $slug): JsonResponse
     {
-        $validatedData = $request->validate([
-            'system_prompt' => 'string'
-        ]);
+        $validatedData = $request->validate(['system_prompt' => 'string']);
         $this->aiConvService->update($validatedData, $slug);
-
-        return response()->json([
-            'success' => true,
-            'response' => "Info updated successfully",
-        ]);
+        return response()->json(['success' => true, 'response' => "Info updated successfully"]);
     }
 
     public function delete($slug): JsonResponse
     {
         $this->aiConvService->delete($slug);
-        return response()->json([
-            'success' => true,
-            'message' => 'Conv deleted successfully'
-        ]);
+        return response()->json(['success' => true, 'message' => 'Conv deleted successfully']);
     }
 
-
-    public function sendMessage(Request $request, $slug, MessageContentValidator $contentValidator): JsonResponse {
-
+    public function sendMessage(Request $request, $slug, MessageContentValidator $contentValidator): JsonResponse
+    {
         $validatedData = $request->validate([
             'isAi' => 'required|boolean',
             'threadId' => 'required|integer|min:0',
@@ -98,22 +72,14 @@ class AiConvController extends Controller
             'completion' => 'required|boolean',
         ]);
         $validatedData['content'] = $contentValidator->validate($validatedData['content']);
-
-        // CREATE MESSAGE
         $conv = AiConv::where('slug', $slug)->firstOrFail();
         $message = $this->messageHandler->create($conv, $validatedData);
-
         $messageData = $message->createMessageObject();
-        return response()->json([
-            'success' => true,
-            'messageData'=> $messageData
-        ]);
+        return response()->json(['success' => true, 'messageData'=> $messageData]);
     }
 
-
-
-    public function updateMessage(Request $request, $slug, MessageContentValidator $contentValidator): JsonResponse {
-
+    public function updateMessage(Request $request, $slug, MessageContentValidator $contentValidator): JsonResponse
+    {
         $validatedData = $request->validate([
             'isAi' => 'required|boolean',
             'content' => 'required|array',
@@ -122,39 +88,34 @@ class AiConvController extends Controller
             'message_id' => 'required|string',
         ]);
         $validatedData['content'] = $contentValidator->validate($validatedData['content']);
-
         $conv = AiConv::where('slug', $slug)->firstOrFail();
         $message = $this->messageHandler->update($conv, $validatedData);
         $messageData = $message->toArray();
         $messageData['created_at'] = $message->created_at->format('Y-m-d+H:i');
         $messageData['updated_at'] = $message->updated_at->format('Y-m-d+H:i');
-
-        return response()->json([
-            'success' => true,
-            'messageData' => $messageData,
-        ]);
+        return response()->json(['success' => true, 'messageData' => $messageData]);
     }
 
-    public function deleteMessage(Request $request, $slug): JsonResponse {
-        $validatedData = $request->validate([
-            "message_id" => 'required|string|size:5'
-        ]);
-
+    public function deleteMessage(Request $request, $slug): JsonResponse
+    {
+        $validatedData = $request->validate(["message_id" => 'required|string|size:5']);
         $conv = AiConv::where('slug', $slug)->first();
-        $deleted = $this->messageHandler->delete($conv, $validatedData);
-
-        return response()->json([
-            'success'=> true,
-        ]);
-
-
+        $this->messageHandler->delete($conv, $validatedData);
+        return response()->json(['success'=> true]);
     }
 
+    // --- HIER BEGINNT IHRE ANPASSUNG ---
 
-    /// ATTACHMENT FUNCTIONS
-    ///
+    public function storeAttachment(Request $request): JsonResponse
+    {
+        // 1. Sicherheits-Check (Professor Only)
+        if ($request->user()->employeetype !== 'professor') {
+            return response()->json([
+                'message' => 'Uploads sind nur für Dozenten erlaubt.'
+            ], 403);
+        }
 
-    public function storeAttachment(Request $request): JsonResponse {
+        // 2. Standard-Logik
         $validateData = $request->validate([
             'file' => 'required|file|max:20480'
         ]);
@@ -162,23 +123,15 @@ class AiConvController extends Controller
         return response()->json($result);
     }
 
-    /**
-     * @throws Exception
-     */
     public function getAttachmentUrl(Request $request, string $uuid): JsonResponse
     {
-
         $attachment = Attachment::where('uuid', $uuid)->firstOrFail();
         if($attachment->user->isNot(Auth::user())){
             throw new AuthorizationException();
         }
         $url = $this->attachmentService->getFileUrl($attachment, null);
-        return response()->json([
-            'success' => true,
-            'url' => $url
-        ]);
+        return response()->json(['success' => true, 'url' => $url]);
     }
-
 
     public function downloadAttachment(string $uuid, string $path)
     {
@@ -187,52 +140,32 @@ class AiConvController extends Controller
             if($attachment->user->isNot(Auth::user())){
                 throw new AuthorizationException();
             }
-
             $storageService = app(FileStorageService::class);
-            $stream = $storageService->streamFromSignedPath($path); // returns a resource
-            return response()->streamDownload(function () use ($stream)
-            {
-                fpassthru($stream); // send stream directly to browser
-            },
-                $attachment->filename,
-                [
-                    'Content-Type' => $attachment->mime,
-                ]
-            );
+            $stream = $storageService->streamFromSignedPath($path);
+            return response()->streamDownload(function () use ($stream) {
+                fpassthru($stream);
+            }, $attachment->filename, ['Content-Type' => $attachment->mime]);
         } catch (FileNotFoundException $e) {
             abort(404, 'File not found');
         }
     }
 
-
-    public function deleteAttachment(Request $request): JsonResponse {
-        $validateData = $request->validate([
-            'fileId' => 'required|string',
-        ]);
-
+    public function deleteAttachment(Request $request): JsonResponse
+    {
+        $validateData = $request->validate(['fileId' => 'required|string']);
         try{
             $attachment = Attachment::where('uuid', $validateData['fileId'])->firstOrFail();
-
             if ($attachment->user && !$attachment->user->is(Auth::user())) {
                 throw new AuthorizationException();
             }
-
             if (!$attachment->attachable instanceof AiConvMsg) {
-                return response()->json([
-                    'success'=> false,
-                    'err'=> 'File Id does not match the properties!'
-                ], 500);
+                return response()->json(['success'=> false, 'err'=> 'File Id mismatch'], 500);
             }
-
             $result = $this->attachmentService->delete($attachment);
-            return response()->json([
-                "success" => $result
-            ]);
-        }
-        catch(Exception $e) {
+            return response()->json(["success" => $result]);
+        } catch(Exception $e) {
             Log::error($e);
             throw $e;
-
         }
     }
 }

@@ -21,7 +21,7 @@ return [
         'tools' => [
             'stream' => true,
             'vision' => false,
-            'file_upload' => false,
+            'file_upload' => true,
         ],
 
         // Ollama Endpoint (Docker-kompatibel)
