@@ -144,6 +144,44 @@ services:
         volumes:
             - qdrant_data:/qdrant/storage
         restart: unless-stopped
+
+    ollama:
+        image: ollama/ollama:latest
+        container_name: ${PROJECT_NAME}-ollama
+        # WICHTIG: Das Volume verhindert, dass Modelle bei jedem Neustart gelöscht werden
+        volumes:
+            - ollama_data:/root/.ollama
+        ports:
+            - "11434:11434"
+        networks:
+            - default
+        # Optional: GPU Support aktivieren, falls vorhanden
+        # deploy:
+        #   resources:
+        #     reservations:
+        #       devices:
+        #         - driver: nvidia
+        #           count: 1
+        #           capabilities: [gpu]
+
+    model-puller:
+        image: curlimages/curl
+        container_name: ${PROJECT_NAME}-model-puller
+        depends_on:
+            ollama:
+                condition: service_started
+        command: >
+            /bin/sh -c "
+            echo 'Warte auf Ollama...' &&
+            sleep 10 &&
+            echo 'Lade Embedding Modell (nomic-embed-text)...' &&
+            curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"nomic-embed-text\"}' &&
+            echo 'Lade Chat Modell (llama3.1)...' &&
+            curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"llama3.1\"}' &&
+            echo 'Modelle bereit!'
+            "
+        networks:
+            - default
 volumes:
     php_socket: { }
     mysql_data:
@@ -154,4 +192,6 @@ volumes:
         driver: local
     qdrant_data:
          driver: local
+    ollama_data:
+        driver: local
 

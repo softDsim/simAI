@@ -82,6 +82,25 @@
                         <div class="label model-selector-label"></div>
                     </div>
 
+                <div class="tag-selector-wrapper">
+                    <select id="upload-tag-select" class="btn-tertiary"
+                        style="
+                            background: transparent;
+                            border: 1px solid var(--border-stroke-strong);
+                            border-radius: 8px;
+                            color: var(--text-primary);
+                            padding: 4px 8px;
+                            font-size: 0.8rem;
+                            cursor: pointer;
+                            outline: none;
+                            max-width: 120px;
+                        ">
+                        <option value="professor">professor</option>
+                        <option value="student">student</option>
+                    </select>
+                </div>
+
+
                 </div>
             </div>
         </div>

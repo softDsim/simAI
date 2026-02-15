@@ -15,6 +15,14 @@ function uploadFileToServer(fileData, url, progressCallback) {
     const promise = new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', fileData.file);
+        // Wir suchen das Dropdown-Element, das wir im HTML hinzugefügt haben
+        const tagSelect = document.getElementById('upload-tag-select');
+        if (tagSelect && tagSelect.value) {
+            formData.append('tag', tagSelect.value);
+        } else {
+            // Fallback, falls das Feld nicht gefunden wird oder leer ist
+            formData.append('tag', 'Allgemein');
+        }
         const tempId = fileData.tempId;
 
         // Initial progress state

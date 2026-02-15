@@ -174,7 +174,7 @@ abstract class AbstractRequest
         // Set timeout parameters for streaming
         curl_setopt($ch, CURLOPT_TIMEOUT, 0);
         curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 1);
-        curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 20);
+        curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 120);
 
         $chunkHandler = new StreamChunkHandler($onData);
 

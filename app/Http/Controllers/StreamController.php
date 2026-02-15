@@ -17,6 +17,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
+use App\Services\AI\EmbeddingService;
+use App\Services\AI\QdrantService;
+
 class StreamController extends Controller
 {
     public function __construct(
@@ -123,6 +126,58 @@ class StreamController extends Controller
         $avatar_url = $this->avatarStorage->getUrl('profile_avatars',
                                             $hawki->username,
                                             $hawki->avatar_id);
+
+        // 1. User-Query extrahieren (die letzte Nachricht)
+        $messages = $validatedData['payload']['messages'];
+        $lastMessage = end($messages);
+        $userQuery = $lastMessage['content']['text'];
+
+        // 2. RAG Logik
+        try {
+            $qdrantService = new QdrantService();
+            $embeddingService = new EmbeddingService($qdrantService); // Service muss public getEmbeddingFromOllama haben
+
+            // a) Embedding der Frage
+            $queryVector = $embeddingService->getEmbeddingFromOllama($userQuery);
+
+            // b) Filter-Logik basierend auf Rolle
+            $user = Auth::user();
+            $filter = null;
+
+            if ($user->employeetype === 'student') {
+                // Studenten sehen NUR Dinge, die explizit für sie getaggt sind (z.B. "student_material")
+                $filter = [
+                    'must' => [
+                        [
+                            'key' => 'tag',
+                            'match' => ['value' => 'student']
+                        ]
+                    ]
+                ];
+            } else {
+                // Professoren sehen alles (kein Filter) oder spezifische Tags
+                $filter = null;
+            }
+
+            // c) Suche in Qdrant mit Filter
+            // HINWEIS: Sie müssen searchSimilar in QdrantService anpassen, damit es $filter akzeptiert!
+            $contextResults = $qdrantService->searchSimilar($queryVector, 3, 0.7, $filter);
+
+            // d) Prompt anreichern
+            if (!empty($contextResults)) {
+                $contextString = implode("\n---\n", $contextResults);
+                $systemPrompt = "Nutze folgenden Kontext für die Antwort:\n" . $contextString;
+
+                // System-Nachricht in den Payload einfügen/ergänzen
+                array_unshift($validatedData['payload']['messages'], [
+                    'role' => 'system',
+                    'content' => ['text' => $systemPrompt]
+                ]);
+            }
+
+        } catch (Exception $e) {
+            Log::warning("RAG Fehler: " . $e->getMessage());
+        }
 
         if ($validatedData['payload']['stream']) {
             // Handle streaming response

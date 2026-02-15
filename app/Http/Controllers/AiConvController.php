@@ -18,6 +18,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
+use App\Services\AI\EmbeddingService;
+use App\Services\AI\QdrantService;
+use Smalot\PdfParser\Parser;
+
 class AiConvController extends Controller
 {
     protected $aiConvService;
@@ -107,21 +111,70 @@ class AiConvController extends Controller
     // --- HIER BEGINNT IHRE ANPASSUNG ---
 
     public function storeAttachment(Request $request): JsonResponse
-    {
-        // 1. Sicherheits-Check (Professor Only)
-        if ($request->user()->employeetype !== 'professor') {
-            return response()->json([
-                'message' => 'Uploads sind nur für Dozenten erlaubt.'
-            ], 403);
+{
+    // 1. Sicherheits-Check (Bestehend)
+    if ($request->user()->employeetype !== 'professor') {
+        return response()->json(['message' => 'Nur Dozenten dürfen hochladen.'], 403);
+    }
+
+    // 2. Validierung erweitern (Tag hinzufügen!)
+    $validateData = $request->validate([
+        'file' => 'required|file|max:20480',
+        'tag'  => 'nullable|string|max:50' // <-- WICHTIG: Tag vom Frontend erlauben
+    ]);
+
+    // 3. Datei speichern (Bestehend)
+    $result = $this->attachmentService->store($validateData['file'], 'private');
+
+    // 4. NEU: Embedding Pipeline starten
+    try {
+        $qdrantService = new QdrantService();
+        $embeddingService = new EmbeddingService($qdrantService);
+
+        // 1. Datei-Informationen holen
+        $uploadedFile = $request->file('file');
+        $filePath = $uploadedFile->getRealPath();
+        $extension = strtolower($uploadedFile->getClientOriginalExtension());
+
+        $fileContent = '';
+
+        // 2. Die Weiche: PDF vs. Text
+        if ($extension === 'pdf') {
+            // PDF-Parser initialisieren
+            $parser = new Parser();
+            // Datei parsen
+            $pdf = $parser->parseFile($filePath);
+            // Nur den Text extrahieren
+            $fileContent = $pdf->getText();
+
+            // Optional: Metadaten bereinigen, falls nötig
+            $fileContent = trim($fileContent);
+        } else {
+            // Fallback für .txt, .md, .json etc.
+            $fileContent = file_get_contents($filePath);
         }
 
-        // 2. Standard-Logik
-        $validateData = $request->validate([
-            'file' => 'required|file|max:20480'
-        ]);
-        $result = $this->attachmentService->store($validateData['file'], 'private');
-        return response()->json($result);
+        // Sicherheitscheck: Ist Text da?
+        if (empty($fileContent)) {
+            Log::warning("Kein Text aus Datei extrahiert: " . $result['uuid']);
+            // Wir brechen hier nicht ab, damit der normale Upload trotzdem klappt
+        } else {
+            // 3. Embedding Prozess starten (wie gehabt)
+            $tag = $request->input('tag', 'professor');
+
+            $embeddingService->processFileAndUpload(
+                $fileContent,
+                $result['uuid'],
+                $tag
+            );
+        }
+
+    } catch (Exception $e) {
+        Log::error("Embedding/Parsing Fehler: " . $e->getMessage());
     }
+
+    return response()->json($result);
+}
 
     public function getAttachmentUrl(Request $request, string $uuid): JsonResponse
     {
