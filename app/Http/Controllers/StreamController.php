@@ -75,6 +75,8 @@ class StreamController extends Controller
      */
     public function handleAiConnectionRequest(Request $request)
     {
+    // PHP erlauben, 5 Minuten zu laufen
+    set_time_limit(300);
         //validate payload
         try {
             $validatedData = $request->validate([
@@ -161,18 +163,38 @@ class StreamController extends Controller
 
             // c) Suche in Qdrant mit Filter
             // HINWEIS: Sie müssen searchSimilar in QdrantService anpassen, damit es $filter akzeptiert!
-            $contextResults = $qdrantService->searchSimilar($queryVector, 3, 0.7, $filter);
+            $contextResults = $qdrantService->searchSimilar($queryVector, 3, 0.4, $filter);
+
+            //Logging
+            \Illuminate\Support\Facades\Log::info("RAG Suche für User " . $user->username);
+            \Illuminate\Support\Facades\Log::info("Suchbegriff Vektorisiert. Filter: " . json_encode($filter));
+            \Illuminate\Support\Facades\Log::info("Gefundene Resultate: " . count($contextResults));
 
             // d) Prompt anreichern
             if (!empty($contextResults)) {
                 $contextString = implode("\n---\n", $contextResults);
-                $systemPrompt = "Nutze folgenden Kontext für die Antwort:\n" . $contextString;
 
-                // System-Nachricht in den Payload einfügen/ergänzen
-                array_unshift($validatedData['payload']['messages'], [
-                    'role' => 'system',
-                    'content' => ['text' => $systemPrompt]
-                ]);
+                // Wir hängen den Kontext an die LETZTE Nachricht (die Frage des Users) an,
+                // statt eine neue System-Nachricht zu erzeugen. Das ist robuster bei verschiedenen Modellen.
+
+                // 1. Letzten Index finden
+                $lastMsgIndex = array_key_last($validatedData['payload']['messages']);
+
+                // 2. Originale Frage holen
+                $originalUserQuery = $validatedData['payload']['messages'][$lastMsgIndex]['content']['text'];
+
+                // 3. Neue Nachricht zusammenbauen
+                $enrichedQuery = "Nutze exklusiv folgenden Kontext aus der Wissensdatenbank, um die Frage zu beantworten:\n\n"
+                               . $contextString
+                               . "\n\n---\nFrage: " . $originalUserQuery;
+
+                // 4. Nachricht im Payload überschreiben
+                $validatedData['payload']['messages'][$lastMsgIndex]['content']['text'] = $enrichedQuery;
+
+                // Optional: Loggen, dass RAG erfolgreich war
+                \Illuminate\Support\Facades\Log::info("RAG: Kontext in User-Nachricht injiziert.");
+            } else {
+                \Illuminate\Support\Facades\Log::info("RAG: Kein Kontext gefunden (Threshold/Filter).");
             }
 
         } catch (Exception $e) {

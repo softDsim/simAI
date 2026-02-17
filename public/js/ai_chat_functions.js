@@ -62,11 +62,14 @@ function onSendClickConv(btn){
 
 // SEND MESSAGE FUNCTION
 async function sendMessageConv(inputField) {
-    // block empty input field.
-    if (inputField.value.trim() == "") {
+    const input = inputField.closest('.input');
+    // Prüfen, ob Dateien im Upload-Queue sind (wir nutzen die globale Map uploadQueues aus file_management.js)
+    const hasAttachments = uploadQueues.has(input.id) && uploadQueues.get(input.id).length > 0;
+
+    // Nur abbrechen, wenn Text leer UND keine Anhänge da sind
+    if (inputField.value.trim() == "" && !hasAttachments) {
         return;
     }
-    const input = inputField.closest('.input');
     inputText = String(escapeHTML(inputField.value.trim()));
 
     setSendBtnStatus(SendBtnStatus.LOADING);
@@ -78,6 +81,58 @@ async function sendMessageConv(inputField) {
 
     /// UPLOAD ATTACHMENTS
     const attachments = await uploadAttachmentQueue(input.id, 'conv');
+
+    // Prüfen, ob ein Tag für die Wissensdatenbank gewählt wurde
+    const tagSelect = document.getElementById('upload-tag-select');
+    const isKnowledgeUpload = tagSelect && (tagSelect.value === 'student' || tagSelect.value === 'professor');
+
+    if (isKnowledgeUpload && attachments && attachments.length > 0) {
+        // 1. UI Aufräumen (Input leeren, Thumbnails entfernen)
+        inputField.value = "";
+        resizeInputField(inputField);
+
+        // Thumbnails aus der Upload-Leiste entfernen
+        const thumbnails = input.querySelectorAll('.attachment');
+        thumbnails.forEach(atch => {
+            // Hilfsfunktion aus file_management.js nutzen
+            if (typeof removeAtchFromList === 'function') {
+                removeAtchFromList(atch.dataset.fileId, input.id);
+            } else {
+                atch.remove(); // Fallback
+            }
+        });
+
+        // Button wieder freigeben
+        setSendBtnStatus(SendBtnStatus.SENDABLE);
+
+        // 2. Feedback-Nachricht im Chat generieren ("Fake"-Antwort)
+        // Damit der User sieht, dass etwas passiert ist.
+        const confirmationMsg = {
+            message_id: 'sys_' + Date.now(), // Temporäre ID
+            message_role: 'assistant',       // Rolle 'assistant' damit es links steht
+            author: {
+                name: 'Wissensdatenbank',    // Absendername
+                username: 'System',
+                avatar_url: null             // Standard-Icon
+            },
+            content: {
+                text: "✅ **Upload erfolgreich!**\nDas Dokument wurde analysiert, vektorisiert und der Wissensdatenbank hinzugefügt. Es steht nun für RAG-Anfragen zur Verfügung."
+            },
+            created_at: new Date().toISOString()
+        };
+
+        // Nachricht anzeigen und scrollen
+        addMessageToChatlog(confirmationMsg, false);
+        scrollToLast(true);
+
+        // Auswahlfeld zurücksetzen (optional)
+        tagSelect.value = "";
+
+        // 3. WICHTIG: Funktion hier beenden!
+        // Das verhindert, dass 'submitMessageToServer' aufgerufen wird,
+        // was den "Trying to access array offset on null" Fehler im Backend verursacht.
+        return;
+    }
 
     /// Encrypt message
     const convKey = await keychainGet('aiConvKey');

@@ -112,6 +112,11 @@ class AiConvController extends Controller
 
     public function storeAttachment(Request $request): JsonResponse
 {
+    $tag = $request->input('tag');
+
+    // Log-Eintrag schreiben
+    Log::info("Upload empfangen. Tag: " . $tag);
+
     // 1. Sicherheits-Check (Bestehend)
     if ($request->user()->employeetype !== 'professor') {
         return response()->json(['message' => 'Nur Dozenten dürfen hochladen.'], 403);

@@ -15,13 +15,27 @@ function uploadFileToServer(fileData, url, progressCallback) {
     const promise = new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', fileData.file);
+        // Wir suchen ALLE Elemente mit dieser ID
+        const allSelects = document.querySelectorAll('#upload-tag-select');
+        let activeSelect = null;
+
+        // Wir nehmen das erste, das SICHTBAR ist (offsetParent ist null bei hidden elements)
+        for (let sel of allSelects) {
+            if (sel.offsetParent !== null) {
+                activeSelect = sel;
+                break;
+            }
+        }
+
+        // Fallback: Wenn keins sichtbar ist, nimm das erste (oder null)
+        const tagSelect = activeSelect || document.getElementById('upload-tag-select');
         // Wir suchen das Dropdown-Element, das wir im HTML hinzugefügt haben
-        const tagSelect = document.getElementById('upload-tag-select');
+        //const tagSelect = document.getElementById('upload-tag-select');
         if (tagSelect && tagSelect.value) {
             formData.append('tag', tagSelect.value);
         } else {
             // Fallback, falls das Feld nicht gefunden wird oder leer ist
-            formData.append('tag', 'Allgemein');
+            formData.append('tag', 'professor');
         }
         const tempId = fileData.tempId;
 
