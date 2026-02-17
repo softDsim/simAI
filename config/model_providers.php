@@ -95,6 +95,29 @@ return [
             'ping_url' => env('OLLAMA_API_URL', 'http://localhost:11434/api/tags'),
             'models' => require __DIR__ . env('OLLAMA_MODEL_LIST_DIR', '/model_lists/ollama_models.php'),
         ],
+        'custom_llama' => [
+        'active' => env('INTERNAL_LLAMA_ACTIVE', true),
+        'adapter' => 'openAi', // Nutzt die existierende OpenAI-Klasse
+        'api_key' => 'sk-dummy', // Oft wird ein Dummy-Key benötigt, auch wenn der Server keinen prüft
+        'api_url' => env('INTERNAL_LLAMA_URL', 'http://10.18.2.105:9000/v1/chat/completions'),
+        'models' => require __DIR__ . '/model_lists/server_llama.php',
+        ],
+
+        'custom_phi' => [
+            'active' => env('INTERNAL_PHI_ACTIVE', true),
+            'adapter' => 'openAi',
+            'api_key' => 'sk-dummy',
+            'api_url' => env('Internal_PHI_URL', 'http://10.18.2.105:9001/v1/chat/completions'),
+            'models' => require __DIR__ . '/model_lists/server_phi.php',
+        ],
+
+        'custom_oss' => [
+            'active' => env('INTERNAL_OSS_ACTIVE', true),
+            'adapter' => 'openAi',
+            'api_key' => 'sk-dummy',
+            'api_url' => env('INTERNAL_OSS_URL', 'http://10.18.2.105:9002/v1/chat/completions'),
+            'models' => require __DIR__ . '/model_lists/server_oss.php',
+        ],
         'openWebUi' => [
             'active' => env('OPEN_WEB_UI_ACTIVE', false),
             'api_key' => env('OPEN_WEB_UI_API_KEY'),
