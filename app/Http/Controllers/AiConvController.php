@@ -159,6 +159,16 @@ class AiConvController extends Controller
             $fileContent = file_get_contents($filePath);
         }
 
+        // Erzwinge UTF-8 und ignoriere ungültige Zeichen
+        // Das entfernt den "Datenmüll", der durch Bilder im PDF entsteht
+        if (!empty($fileContent)) {
+            $fileContent = iconv('UTF-8', 'UTF-8//IGNORE', $fileContent);
+            // Alternative falls iconv Probleme macht:
+            // $fileContent = mb_convert_encoding($fileContent, 'UTF-8', 'UTF-8');
+
+            $fileContent = trim($fileContent);
+        }
+
         // Sicherheitscheck: Ist Text da?
         if (empty($fileContent)) {
             Log::warning("Kein Text aus Datei extrahiert: " . $result['uuid']);

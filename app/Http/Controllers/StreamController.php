@@ -147,6 +147,11 @@ class StreamController extends Controller
             $filter = null;
 
             if ($user->employeetype === 'student') {
+                Log::channel('explainability')->info('Role-based filter applied', [
+                    'user' => $user->username,
+                    'role' => $user->employeetype,
+                    'filter' => $filter
+                ]);
                 // Studenten sehen NUR Dinge, die explizit für sie getaggt sind (z.B. "student_material")
                 $filter = [
                     'must' => [
@@ -159,6 +164,10 @@ class StreamController extends Controller
             } else {
                 // Professoren sehen alles (kein Filter) oder spezifische Tags
                 $filter = null;
+                Log::channel('explainability')->info('No filter applied (full access)', [
+                    'user' => $user->username,
+                    'role' => $user->employeetype
+                ]);
             }
 
             // c) Suche in Qdrant mit Filter
@@ -173,6 +182,10 @@ class StreamController extends Controller
             // d) Prompt anreichern
             if (!empty($contextResults)) {
                 $contextString = implode("\n---\n", $contextResults);
+                Log::channel('explainability')->info('Context injected into prompt', [
+                    'context_length' => strlen($contextString),
+                    'context_chunks' => count($contextResults)
+                ]);
 
                 // Wir hängen den Kontext an die LETZTE Nachricht (die Frage des Users) an,
                 // statt eine neue System-Nachricht zu erzeugen. Das ist robuster bei verschiedenen Modellen.
@@ -190,6 +203,9 @@ class StreamController extends Controller
 
                 // 4. Nachricht im Payload überschreiben
                 $validatedData['payload']['messages'][$lastMsgIndex]['content']['text'] = $enrichedQuery;
+                Log::channel('explainability')->info('Final enriched query prepared', [
+                    'final_length' => strlen($enrichedQuery)
+                ]);
 
                 // Optional: Loggen, dass RAG erfolgreich war
                 \Illuminate\Support\Facades\Log::info("RAG: Kontext in User-Nachricht injiziert.");

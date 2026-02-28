@@ -23,17 +23,30 @@ class EmbeddingService
      */
     public function processFileAndUpload(string $text, string $fileId, string $tag): void
     {
+
         // 1. Sicherstellen, dass Qdrant bereit ist
         $this->qdrantService->ensureCollectionExists();
 
         // 2. Text zerteilen (Chunking)
         $chunks = $this->chunkText($text);
+        Log::channel('explainability')->info('Chunking completed', [
+            'file_id' => $fileId,
+            'total_chunks' => count($chunks),
+            'chunk_size' => 800
+        ]);
+
         $points = [];
 
         foreach ($chunks as $index => $chunk) {
             try {
                 // 3. Vektor von Ollama holen
                 $vector = $this->getEmbeddingFromOllama($chunk);
+                Log::channel('explainability')->info('Embedding generated', [
+                    'file_id' => $fileId,
+                    'chunk_index' => $index,
+                    'vector_dimension' => count($vector),
+                    'model' => env('EMBEDDING_MODEL', 'nomic-embed-text')
+                ]);
 
                 // 4. Datenpaket für Qdrant schnüren
                 $points[] = [
@@ -54,6 +67,10 @@ class EmbeddingService
         // 5. Alles auf einmal hochladen (Batch Upload ist schneller)
         if (!empty($points)) {
             $this->qdrantService->upsertPoints($points);
+            Log::channel('explainability')->info('Qdrant batch upsert completed', [
+                'file_id' => $fileId,
+                'points_uploaded' => count($points)
+            ]);
             Log::info("Erfolgreich " . count($points) . " Chunks in Qdrant gespeichert.");
         }
     }

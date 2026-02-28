@@ -39,6 +39,11 @@ class QdrantService
             if ($createResponse->failed()) {
                 throw new Exception("Fehler beim Erstellen der Qdrant Collection: " . $createResponse->body());
             }
+            Log::channel('explainability')->info('Qdrant collection ensured', [
+                'collection' => $this->collection,
+                'vector_size' => $this->vectorSize,
+                'distance' => 'Cosine'
+            ]);
             Log::info("Qdrant Collection '{$this->collection}' erstellt.");
         }
     }
@@ -66,7 +71,7 @@ class QdrantService
     {
         // Qdrant braucht UUIDs oder Integers als IDs. Wir nutzen UUID v5.
         // Für die Bachelorarbeit reicht auch eine einfache Random UUID:
-        return \Illuminate\Support\Str::uuid()->toString();
+        return \Ramsey\Uuid\Uuid::uuid5(\Ramsey\Uuid\Uuid::NAMESPACE_DNS, $data)->toString();
     }
 
     /**
@@ -74,6 +79,10 @@ class QdrantService
      */
     public function searchSimilar(array $vector, int $limit = 3, float $threshold = 0.7, ?array $filter = null): array
     {
+        // Disable for RAG Test
+        if (env('DISABLE_RAG_FOR_TEST', false)) {
+            return [];
+        }
         // Schritt A: Basis-Anfrage bauen
         $body = [
             'vector' => $vector,
@@ -81,6 +90,11 @@ class QdrantService
             'with_payload' => true,
             'score_threshold' => $threshold
         ];
+        Log::channel('explainability')->info('Qdrant search request', [
+            'limit' => $limit,
+            'threshold' => $threshold,
+            'filter' => $filter,
+        ]);
 
         // Schritt B: Filter hinzufügen (Nur wenn einer übergeben wurde!)
         if ($filter) {
@@ -103,7 +117,15 @@ class QdrantService
         }
 
         // Schritt E: Ergebnis extrahieren
-        return collect($response->json()['result'])->map(function ($item) {
+        $results = collect($response->json()['result']);
+
+        Log::channel('explainability')->info('Qdrant search results', [
+            'result_count' => $results->count(),
+            'scores' => $results->pluck('score'),
+            'chunk_ids' => $results->pluck('id')
+        ]);
+
+        return $results->map(function ($item) {
             return $item['payload']['text'] ?? '';
         })->toArray();
     }

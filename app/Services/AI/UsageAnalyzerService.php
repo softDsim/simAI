@@ -28,6 +28,13 @@ class UsageAnalyzerService
             'model' => $usage->model->getId(),
             'type' => $type,
         ]);
+        Log::channel('explainability')->info('Usage record stored', [
+            'user_id' => $userId,
+            'model' => $model,
+            'prompt_tokens' => $usage->promptTokens,
+            'completion_tokens' => $usage->completionTokens,
+            'type' => $type
+        ]);
 
     }
 
