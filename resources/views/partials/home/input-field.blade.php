@@ -28,14 +28,13 @@
                     </button>
                 @endif
 
-                @if(!$lite && $activeModule === 'chat')
+                @if(!$lite && $activeModule === 'chat' && Auth::user()->employeetype === 'professor')
                     <button class="btn-xs fast-access-btn" value="system_prompt_panel" onclick="toggleRelativePanelClass('input-controls', this,'expanded'); switchControllerProp(this, 'system_prompt_panel')">
                         <x-icon name="sliders"/>
                         <div class="tooltip">
                             {{ $translation["SystemPrompt"] }}
                         </div>
                     </button>
-
                 @endif
 
                 @if(!$lite)
@@ -58,12 +57,14 @@
 
 
 
+                @if(Auth::user()->employeetype === 'professor')
                 <button class="btn-xs fast-access-btn file-upload file-upload-btn" onclick="selectFile(this)">
                     <x-icon name="paperclip"/>
                     <div class="tooltip">
                         {{ $translation["UploadFile"] }}
                     </div>
                 </button>
+                @endif
 
 
             </div>
@@ -82,6 +83,7 @@
                         <div class="label model-selector-label"></div>
                     </div>
 
+                @if(Auth::user()->employeetype === 'professor')
                 <div class="tag-selector-wrapper">
                     <select id="upload-tag-select" class="btn-tertiary"
                         style="
@@ -99,6 +101,7 @@
                         <option value="student">student</option>
                     </select>
                 </div>
+                @endif
 
 
                 </div>
@@ -125,11 +128,11 @@
                             <div class="label">{{ $translation["Models"] }}</div>
                         </button>
 
-                        @if($activeModule === 'chat')
-                        <button class="btn-xs menu-item" value="system_prompt_panel" onclick="switchControllerProp(this, 'system_prompt_panel')">
-                            <x-icon name="sliders"/>
-                            <div class="label">{{ $translation["SystemPrompt"] }}</div>
-                        </button>
+                        @if($activeModule === 'chat' && Auth::user()->employeetype === 'professor')
+                            <button class="btn-xs menu-item" value="system_prompt_panel" onclick="switchControllerProp(this, 'system_prompt_panel')">
+                                <x-icon name="sliders"/>
+                                <div class="label">{{ $translation["SystemPrompt"] }}</div>
+                            </button>
                         @endif
 
                         <button class="btn-xs menu-item" value="export-panel" onclick="switchControllerProp(this, 'export-panel')">
