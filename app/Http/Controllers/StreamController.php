@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Log;
 
 use App\Services\AI\EmbeddingService;
 use App\Services\AI\QdrantService;
+use Exception;
 
 class StreamController extends Controller
 {
@@ -133,7 +134,10 @@ class StreamController extends Controller
         // 1. User-Query extrahieren (die letzte Nachricht)
         $messages = $validatedData['payload']['messages'];
         $lastMessage = end($messages);
-        $userQuery = $lastMessage['content']['text'] ?? '';
+        $userQuery = $lastMessage['content']['text'];
+
+        // 1.5 Sicherheits-Kürzung für das Embedding-Modell (max. 1000 Zeichen für die Vektorsuche)
+        $ragQuery = mb_substr($userQuery, 0, 1000);
 
         // 2. RAG Logik
         try {
