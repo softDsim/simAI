@@ -92,7 +92,7 @@ return [
         'ollama' => [
             'active' => env('OLLAMA_ACTIVE', true),
             'api_url' => env('OLLAMA_API_URL', 'http://localhost:11434/api/chat'),
-            'ping_url' => env('OLLAMA_API_URL', 'http://localhost:11434/api/tags'),
+            'ping_url' => env('OLLAMA_PING_URL', 'http://localhost:11434/api/tags'),
             'models' => require __DIR__ . env('OLLAMA_MODEL_LIST_DIR', '/model_lists/ollama_models.php'),
         ],
         'custom_llama' => [

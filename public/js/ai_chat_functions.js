@@ -83,7 +83,16 @@ async function sendMessageConv(inputField) {
     const attachments = await uploadAttachmentQueue(input.id, 'conv');
 
     // Prüfen, ob ein Tag für die Wissensdatenbank gewählt wurde
-    const tagSelect = document.getElementById('upload-tag-select');
+   // FINDE DAS SICHTBARE DROPDOWN
+    const allSelects = document.querySelectorAll('#upload-tag-select');
+    let activeSelect = null;
+    for (let sel of allSelects) {
+        if (sel.offsetParent !== null) {
+            activeSelect = sel;
+            break;
+        }
+    }
+    const tagSelect = activeSelect || document.getElementById('upload-tag-select');
     const isKnowledgeUpload = tagSelect && (tagSelect.value === 'student' || tagSelect.value === 'professor');
 
     if (isKnowledgeUpload && attachments && attachments.length > 0) {

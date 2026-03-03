@@ -4,7 +4,7 @@ return [
         'active' => true,
 
         // MUSS exakt mit `ollama list` übereinstimmen
-        'id' => 'llama3.1:latest',
+        'id' => 'llama3.1',
 
         // Anzeigename im UI
         'label' => 'Llama 3.1 (Ollama – local)',
