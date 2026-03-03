@@ -95,51 +95,51 @@ async function sendMessageConv(inputField) {
     const tagSelect = activeSelect || document.getElementById('upload-tag-select');
     const isKnowledgeUpload = tagSelect && (tagSelect.value === 'student' || tagSelect.value === 'professor');
 
-    if (isKnowledgeUpload && attachments && attachments.length > 0) {
+    // NEU: Wir prüfen NUR noch, ob es ein Datenbank-Upload sein sollte.
+    // Wenn ja, brechen wir danach IMMER ab, damit keine falsche Chat-Nachricht gesendet wird.
+    if (isKnowledgeUpload && hasAttachments) {
         // 1. UI Aufräumen (Input leeren, Thumbnails entfernen)
         inputField.value = "";
         resizeInputField(inputField);
 
-        // Thumbnails aus der Upload-Leiste entfernen
         const thumbnails = input.querySelectorAll('.attachment');
         thumbnails.forEach(atch => {
-            // Hilfsfunktion aus file_management.js nutzen
             if (typeof removeAtchFromList === 'function') {
                 removeAtchFromList(atch.dataset.fileId, input.id);
             } else {
-                atch.remove(); // Fallback
+                atch.remove();
             }
         });
 
-        // Button wieder freigeben
+        // WICHTIG: Button IMMER wieder freigeben, auch wenn ein Fehler passierte!
         setSendBtnStatus(SendBtnStatus.SENDABLE);
 
-        // 2. Feedback-Nachricht im Chat generieren ("Fake"-Antwort)
-        // Damit der User sieht, dass etwas passiert ist.
-        const confirmationMsg = {
-            message_id: 'sys_' + Date.now(), // Temporäre ID
-            message_role: 'assistant',       // Rolle 'assistant' damit es links steht
-            author: {
-                name: 'Wissensdatenbank',    // Absendername
-                username: 'System',
-                avatar_url: null             // Standard-Icon
-            },
-            content: {
-                text: "✅ **Upload erfolgreich!**\nDas Dokument wurde analysiert, vektorisiert und der Wissensdatenbank hinzugefügt. Es steht nun für RAG-Anfragen zur Verfügung."
-            },
-            created_at: new Date().toISOString()
-        };
+        // 2. Feedback-Nachricht im Chat NUR generieren, wenn erfolgreich hochgeladen wurde
+        if (attachments && attachments.length > 0) {
+            const confirmationMsg = {
+                message_id: 'sys_' + Date.now(),
+                message_role: 'assistant',
+                author: {
+                    name: 'Wissensdatenbank',
+                    username: 'System',
+                    avatar_url: null
+                },
+                content: {
+                    text: "✅ **Upload erfolgreich!**\nDas Dokument wurde analysiert, vektorisiert und der Wissensdatenbank hinzugefügt. Es steht nun für RAG-Anfragen zur Verfügung."
+                },
+                created_at: new Date().toISOString()
+            };
 
-        // Nachricht anzeigen und scrollen
-        addMessageToChatlog(confirmationMsg, false);
-        scrollToLast(true);
+            addMessageToChatlog(confirmationMsg, false);
+            scrollToLast(true);
+        }
 
-        // Auswahlfeld zurücksetzen (optional)
-        tagSelect.value = "";
+        // Auswahlfeld zurücksetzen
+        /*if (tagSelect) {
+            tagSelect.value = "";
+        }*/
 
-        // 3. WICHTIG: Funktion hier beenden!
-        // Das verhindert, dass 'submitMessageToServer' aufgerufen wird,
-        // was den "Trying to access array offset on null" Fehler im Backend verursacht.
+        // Funktion beenden
         return;
     }
 
@@ -167,6 +167,11 @@ async function sendMessageConv(inputField) {
     }
 
     const submissionData = await submitMessageToServer(messageObj, `/req/conv/sendMessage/${activeConv.slug}`);
+
+     if (!submissionData) {
+        setSendBtnStatus(SendBtnStatus.SENDABLE);
+        return;
+    }
 
     // Replace the original text
     submissionData.content.text = inputText;
