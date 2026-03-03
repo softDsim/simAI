@@ -70,41 +70,40 @@
             </div>
 
             <div class="right">
-                <div id="model-selectors">
 
+                <!-- NEU: Tag Selector direkt im .right Container (als Flex-Item) -->
+                @if(Auth::user()->employeetype === 'professor')
+                <div class="tag-selector-wrapper">
+                    <select id="upload-tag-select"
+                        style="
+                        background: transparent;
+                        border: var(--border-stroke-thin);
+                        border-radius: var(--border-radius-tight);
+                        color: var(--text-color);
+                        padding: 4px 8px;
+                        font-size: var(--font-xs);
+                        cursor: pointer;
+                        outline: none;
+                        ">
+                        <option value="professor" style="background: var(--background-main);">Professor</option>
+                        <option value="student" style="background: var(--background-main);">Student</option>
+                    </select>
+                </div>
+                @endif
+
+                <!-- ALTES: Model Selector -->
+                <div id="model-selectors">
                     <div class="burger-dropdown anchor-top-right" id="model-selector-burger">
                         @include('partials.home.components.models-list')
                     </div>
-
                     <div class="burger-btn-arrow burger-btn" onclick="openBurgerMenu('model-selector-burger', this, false, true, true)">
                         <div class="icon">
                             <x-icon name="chevron-up"/>
                         </div>
                         <div class="label model-selector-label"></div>
                     </div>
-
-                @if(Auth::user()->employeetype === 'professor')
-                <div class="tag-selector-wrapper">
-                    <select id="upload-tag-select" class="btn-tertiary"
-                        style="
-                            background: transparent;
-                            border: 1px solid var(--border-stroke-strong);
-                            border-radius: 8px;
-                            color: var(--text-primary);
-                            padding: 4px 8px;
-                            font-size: 0.8rem;
-                            cursor: pointer;
-                            outline: none;
-                            max-width: 120px;
-                        ">
-                        <option value="professor">professor</option>
-                        <option value="student">student</option>
-                    </select>
                 </div>
-                @endif
 
-
-                </div>
             </div>
         </div>
 
