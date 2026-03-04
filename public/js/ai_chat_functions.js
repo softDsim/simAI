@@ -62,11 +62,14 @@ function onSendClickConv(btn){
 
 // SEND MESSAGE FUNCTION
 async function sendMessageConv(inputField) {
-    // block empty input field.
-    if (inputField.value.trim() == "") {
+    const input = inputField.closest('.input');
+    // Prüfen, ob Dateien im Upload-Queue sind (wir nutzen die globale Map uploadQueues aus file_management.js)
+    const hasAttachments = uploadQueues.has(input.id) && uploadQueues.get(input.id).length > 0;
+
+    // Nur abbrechen, wenn Text leer UND keine Anhänge da sind
+    if (inputField.value.trim() == "" && !hasAttachments) {
         return;
     }
-    const input = inputField.closest('.input');
     inputText = String(escapeHTML(inputField.value.trim()));
 
     setSendBtnStatus(SendBtnStatus.LOADING);
@@ -78,6 +81,67 @@ async function sendMessageConv(inputField) {
 
     /// UPLOAD ATTACHMENTS
     const attachments = await uploadAttachmentQueue(input.id, 'conv');
+
+    // Prüfen, ob ein Tag für die Wissensdatenbank gewählt wurde
+   // FINDE DAS SICHTBARE DROPDOWN
+    const allSelects = document.querySelectorAll('#upload-tag-select');
+    let activeSelect = null;
+    for (let sel of allSelects) {
+        if (sel.offsetParent !== null) {
+            activeSelect = sel;
+            break;
+        }
+    }
+    const tagSelect = activeSelect || document.getElementById('upload-tag-select');
+    const isKnowledgeUpload = tagSelect && (tagSelect.value === 'student' || tagSelect.value === 'professor');
+
+    // NEU: Wir prüfen NUR noch, ob es ein Datenbank-Upload sein sollte.
+    // Wenn ja, brechen wir danach IMMER ab, damit keine falsche Chat-Nachricht gesendet wird.
+    if (isKnowledgeUpload && hasAttachments) {
+        // 1. UI Aufräumen (Input leeren, Thumbnails entfernen)
+        inputField.value = "";
+        resizeInputField(inputField);
+
+        const thumbnails = input.querySelectorAll('.attachment');
+        thumbnails.forEach(atch => {
+            if (typeof removeAtchFromList === 'function') {
+                removeAtchFromList(atch.dataset.fileId, input.id);
+            } else {
+                atch.remove();
+            }
+        });
+
+        // WICHTIG: Button IMMER wieder freigeben, auch wenn ein Fehler passierte!
+        setSendBtnStatus(SendBtnStatus.SENDABLE);
+
+        // 2. Feedback-Nachricht im Chat NUR generieren, wenn erfolgreich hochgeladen wurde
+        if (attachments && attachments.length > 0) {
+            const confirmationMsg = {
+                message_id: 'sys_' + Date.now(),
+                message_role: 'assistant',
+                author: {
+                    name: 'Wissensdatenbank',
+                    username: 'System',
+                    avatar_url: null
+                },
+                content: {
+                    text: "✅ **Upload erfolgreich!**\nDas Dokument wurde analysiert, vektorisiert und der Wissensdatenbank hinzugefügt. Es steht nun für RAG-Anfragen zur Verfügung."
+                },
+                created_at: new Date().toISOString()
+            };
+
+            addMessageToChatlog(confirmationMsg, false);
+            scrollToLast(true);
+        }
+
+        // Auswahlfeld zurücksetzen
+        /*if (tagSelect) {
+            tagSelect.value = "";
+        }*/
+
+        // Funktion beenden
+        return;
+    }
 
     /// Encrypt message
     const convKey = await keychainGet('aiConvKey');
@@ -103,6 +167,11 @@ async function sendMessageConv(inputField) {
     }
 
     const submissionData = await submitMessageToServer(messageObj, `/req/conv/sendMessage/${activeConv.slug}`);
+
+     if (!submissionData) {
+        setSendBtnStatus(SendBtnStatus.SENDABLE);
+        return;
+    }
 
     // Replace the original text
     submissionData.content.text = inputText;

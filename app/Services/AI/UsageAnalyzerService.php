@@ -6,6 +6,7 @@ use App\Models\Records\UsageRecord;
 use App\Services\AI\Value\TokenUsage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class UsageAnalyzerService
 {
@@ -27,6 +28,13 @@ class UsageAnalyzerService
             'completion_tokens' => $usage->completionTokens,
             'model' => $usage->model->getId(),
             'type' => $type,
+        ]);
+         Log::channel('explainability')->info('Usage record stored', [
+            'user_id' => $userId,
+            'model' => $usage->model->getId(), // <-- Geändert!
+            'prompt_tokens' => $usage->promptTokens,
+            'completion_tokens' => $usage->completionTokens,
+            'type' => $type
         ]);
 
     }

@@ -16,6 +16,11 @@ use Hawk\HawkiCrypto\SymmetricCrypto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
+
+use App\Services\AI\EmbeddingService;
+use App\Services\AI\QdrantService;
+use Exception;
 
 class StreamController extends Controller
 {
@@ -72,6 +77,8 @@ class StreamController extends Controller
      */
     public function handleAiConnectionRequest(Request $request)
     {
+    // PHP erlauben, 5 Minuten zu laufen
+    set_time_limit(300);
         //validate payload
         try {
             $validatedData = $request->validate([
@@ -123,6 +130,98 @@ class StreamController extends Controller
         $avatar_url = $this->avatarStorage->getUrl('profile_avatars',
                                             $hawki->username,
                                             $hawki->avatar_id);
+
+        // 1. User-Query extrahieren (die letzte Nachricht)
+        $messages = $validatedData['payload']['messages'];
+        $lastMessage = end($messages);
+        $userQuery = $lastMessage['content']['text'];
+
+        // 1.5 Sicherheits-Kürzung für das Embedding-Modell (max. 1000 Zeichen für die Vektorsuche)
+        $ragQuery = mb_substr($userQuery, 0, 1000);
+
+        // 2. RAG Logik
+        try {
+            if (!empty(trim($userQuery))) {
+                $qdrantService = new QdrantService();
+                $embeddingService = new EmbeddingService($qdrantService); // Service muss public getEmbeddingFromOllama haben
+
+                // a) Embedding der Frage
+                $queryVector = $embeddingService->getEmbeddingFromOllama($userQuery);
+
+                // b) Filter-Logik basierend auf Rolle
+                $user = Auth::user();
+                $filter = null;
+
+                if ($user->employeetype === 'student') {
+                    Log::channel('explainability')->info('Role-based filter applied', [
+                        'user' => $user->username,
+                        'role' => $user->employeetype,
+                        'filter' => $filter
+                    ]);
+                    // Studenten sehen NUR Dinge, die explizit für sie getaggt sind (z.B. "student_material")
+                    $filter = [
+                        'must' => [
+                            [
+                                'key' => 'tag',
+                                'match' => ['value' => 'student']
+                            ]
+                        ]
+                    ];
+                } else {
+                    // Professoren sehen alles (kein Filter) oder spezifische Tags
+                    $filter = null;
+                    Log::channel('explainability')->info('No filter applied (full access)', [
+                        'user' => $user->username,
+                        'role' => $user->employeetype
+                    ]);
+                }
+
+                // c) Suche in Qdrant mit Filter
+                // HINWEIS: Sie müssen searchSimilar in QdrantService anpassen, damit es $filter akzeptiert!
+                $contextResults = $qdrantService->searchSimilar($queryVector, 3, 0.4, $filter);
+
+                //Logging
+                \Illuminate\Support\Facades\Log::info("RAG Suche für User " . $user->username);
+                \Illuminate\Support\Facades\Log::info("Suchbegriff Vektorisiert. Filter: " . json_encode($filter));
+                \Illuminate\Support\Facades\Log::info("Gefundene Resultate: " . count($contextResults));
+
+                // d) Prompt anreichern
+                if (!empty($contextResults)) {
+                    $contextString = implode("\n---\n", $contextResults);
+                    Log::channel('explainability')->info('Context injected into prompt', [
+                        'context_length' => strlen($contextString),
+                        'context_chunks' => count($contextResults)
+                    ]);
+
+                    // Wir hängen den Kontext an die LETZTE Nachricht (die Frage des Users) an,
+                    // statt eine neue System-Nachricht zu erzeugen. Das ist robuster bei verschiedenen Modellen.
+
+                    // 1. Letzten Index finden
+                    $lastMsgIndex = array_key_last($validatedData['payload']['messages']);
+
+                    // 2. Originale Frage holen
+                    $originalUserQuery = $validatedData['payload']['messages'][$lastMsgIndex]['content']['text'];
+
+                    // 3. Neue Nachricht zusammenbauen
+                    $enrichedQuery = "Nutze exklusiv folgenden Kontext aus der Wissensdatenbank, um die Frage zu beantworten:\n\n"
+                                   . $contextString
+                                   . "\n\n---\nFrage: " . $originalUserQuery;
+
+                    // 4. Nachricht im Payload überschreiben
+                    $validatedData['payload']['messages'][$lastMsgIndex]['content']['text'] = $enrichedQuery;
+                    Log::channel('explainability')->info('Final enriched query prepared', [
+                        'final_length' => strlen($enrichedQuery)
+                    ]);
+
+                    // Optional: Loggen, dass RAG erfolgreich war
+                    \Illuminate\Support\Facades\Log::info("RAG: Kontext in User-Nachricht injiziert.");
+                } else {
+                    \Illuminate\Support\Facades\Log::info("RAG: Kein Kontext gefunden (Threshold/Filter).");
+                }
+            }
+        } catch (Exception $e) {
+            Log::warning("RAG Fehler: " . $e->getMessage());
+        }
 
         if ($validatedData['payload']['stream']) {
             // Handle streaming response

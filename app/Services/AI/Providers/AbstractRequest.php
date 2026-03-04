@@ -35,6 +35,11 @@ abstract class AbstractRequest
     ): void
     {
         set_time_limit($timeout ?? 120);
+        \Log::channel('explainability')->info('AI request started', [
+            'model' => $model->getId(),
+            'timeout' => $timeout ?? 120
+        ]);
+
 
         // Initialize cURL
         $ch = curl_init();
@@ -105,6 +110,10 @@ abstract class AbstractRequest
 
         $data = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
 
+        \Log::channel('explainability')->info('AI request completed', [
+            'model' => $model->getId(),
+            'response_size' => strlen(json_encode($data))
+        ]);
         return $dataToResponse($data);
     }
 
@@ -174,7 +183,7 @@ abstract class AbstractRequest
         // Set timeout parameters for streaming
         curl_setopt($ch, CURLOPT_TIMEOUT, 0);
         curl_setopt($ch, CURLOPT_LOW_SPEED_LIMIT, 1);
-        curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 20);
+        curl_setopt($ch, CURLOPT_LOW_SPEED_TIME, 120);
 
         $chunkHandler = new StreamChunkHandler($onData);
 

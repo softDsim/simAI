@@ -433,11 +433,19 @@ async function uploadAttachmentQueue(queueId, category, slug = null) {
     const uploadTasks = attachments.map(attachment => {
         updateFileStatus(attachment.fileData.tempId, 'uploading');
 
-        const upload = uploadFileToServer(attachment.fileData, url, (tempId, status, percent, fileUrl = null) => {
+        // errorMsg als 5. Parameter hinzufügen
+        const upload = uploadFileToServer(attachment.fileData, url, (tempId, status, percent, fileUrl = null, errorMsg = null) => {
             updateFileStatus(attachment.fileData.tempId, status, fileUrl);
+
             if(status === 'error'){
-                const inputField = document.querySelector(`.input[id=${queueId}`);
-                showFeedbackMsg(inputField, 'error', translation.Input_Err_UploadFailed);
+                // Hier wurden die fehlenden Anführungszeichen im Selektor ergänzt
+                const inputField = document.querySelector(`.input[id="${queueId}"]`);
+
+                // Zeige die spezifische Fehlermeldung vom Server, falls vorhanden.
+                // Sonst nutze die generische Übersetzung.
+                const finalErrorText = errorMsg ? errorMsg : translation.Input_Err_UploadFailed;
+
+                showFeedbackMsg(inputField, 'error', finalErrorText);
             }
         });
 

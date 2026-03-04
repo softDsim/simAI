@@ -15,6 +15,28 @@ function uploadFileToServer(fileData, url, progressCallback) {
     const promise = new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', fileData.file);
+        // Wir suchen ALLE Elemente mit dieser ID
+        const allSelects = document.querySelectorAll('#upload-tag-select');
+        let activeSelect = null;
+
+        // Wir nehmen das erste, das SICHTBAR ist (offsetParent ist null bei hidden elements)
+        for (let sel of allSelects) {
+            if (sel.offsetParent !== null) {
+                activeSelect = sel;
+                break;
+            }
+        }
+
+        // Fallback: Wenn keins sichtbar ist, nimm das erste (oder null)
+        const tagSelect = activeSelect || document.getElementById('upload-tag-select');
+        // Wir suchen das Dropdown-Element, das wir im HTML hinzugefügt haben
+        //const tagSelect = document.getElementById('upload-tag-select');
+        if (tagSelect && tagSelect.value) {
+            formData.append('tag', tagSelect.value);
+        } else {
+            // Fallback, falls das Feld nicht gefunden wird oder leer ist
+            formData.append('tag', 'professor');
+        }
         const tempId = fileData.tempId;
 
         // Initial progress state
@@ -51,9 +73,22 @@ function uploadFileToServer(fileData, url, progressCallback) {
                     reject('Invalid server response');
                 }
             } else {
-                progressCallback?.(tempId, 'error', 100);
-                reject(`Upload failed: ${xhr.statusText}`);
-            }
+                    let errorMsg = `Upload failed: ${xhr.statusText}`;
+
+                    // Versuchen, die JSON-Fehlermeldung vom Backend zu lesen (z.B. bei 403)
+                    try {
+                        const errorData = JSON.parse(xhr.responseText);
+                        if (errorData.message) {
+                            errorMsg = errorData.message;
+                        }
+                    } catch (e) {
+                        // Ignorieren, falls die Antwort kein valides JSON ist
+                    }
+
+                    // Den extrahierten Fehlertext als 5. Parameter an den Callback übergeben
+                    progressCallback?.(tempId, 'error', 100, null, errorMsg);
+                    reject(errorMsg);
+                }
         };
 
         // Network error
