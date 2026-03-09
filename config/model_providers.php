@@ -11,10 +11,10 @@ return [
     |
     */
     'default_models' => [
-        'default_model' => env('DEFAULT_MODEL', 'gpt-4.1-nano'),
-        'default_web_search_model' => env('DEFAULT_WEBSEARCH_MODEL', 'gemini-2.0-flash'),
-        'default_file_upload_model' => env('DEFAULT_FILEUPLOAD_MODEL', 'meta-llama-3.1-8b-instruct'),
-        'default_vision_model' =>  env('DEFAULT_VISION_MODEL', 'qwen2.5-vl-72b-instruct'),
+        'default_model' => env('DEFAULT_MODEL', 'llama3.1'),
+        'default_web_search_model' => env('DEFAULT_WEBSEARCH_MODEL', 'llama3.1'),
+        'default_file_upload_model' => env('DEFAULT_FILEUPLOAD_MODEL', 'llama3.1'),
+        'default_vision_model' =>  env('DEFAULT_VISION_MODEL', 'llama3.1'),
     ],
 
     /*
@@ -40,9 +40,9 @@ return [
     |
     */
     'system_models' => [
-        'title_generator' => env('TITLE_GENERATOR_MODEL', 'gpt-4.1-nano'),
-        'prompt_improver' => env('PROMPT_IMPROVEMENT_MODEL', 'gpt-4.1-nano'),
-        'summarizer' => env('SUMMARIZER_MODEL', 'gpt-4.1-nano'),
+        'title_generator' => env('TITLE_GENERATOR_MODEL', 'llama3.1'),
+        'prompt_improver' => env('PROMPT_IMPROVEMENT_MODEL', 'llama3.1'),
+        'summarizer' => env('SUMMARIZER_MODEL', 'llama3.1'),
     ],
 
     /*
@@ -113,9 +113,9 @@ return [
 
         'custom_oss' => [
             'active' => env('INTERNAL_OSS_ACTIVE', true),
-            'adapter' => 'openAi',
-            'api_key' => 'sk-dummy',
-            'api_url' => env('INTERNAL_OSS_URL', 'http://10.18.2.105:9002/v1/chat/completions'),
+            'adapter' => 'openAi', // WICHTIG: Nutzt die Logik für OpenAI-kompatible APIs
+            'api_key' => env('INTERNAL_OSS_KEY', 'sk-prod-key-002'), // Der neue Key
+            'api_url' => env('INTERNAL_OSS_URL', 'http://10.18.2.105:8090/v1/chat/completions'),
             'models' => require __DIR__ . '/model_lists/server_oss.php',
         ],
         'openWebUi' => [

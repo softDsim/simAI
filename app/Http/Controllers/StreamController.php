@@ -101,6 +101,8 @@ class StreamController extends Controller
                 'threadIndex' => 'nullable|int',
                 'slug' => 'nullable|string',
                 'key' => 'nullable|string',
+                //'skip_rag' => 'nullable|boolean', // <--- NEU: Erlaubt den Bypass
+
             ]);
 
             // Ensure that nullable fields are set to default values if not provided
