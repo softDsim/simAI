@@ -18,22 +18,56 @@ function renderRagDocs(docs) {
     tbody.innerHTML = '';
     docs.forEach(doc => {
         const date = new Date(doc.created_at).toLocaleDateString('de-DE');
+
+        // Markiert den aktuell aktiven Tag im Dropdown
+        const isProf = doc.tag === 'professor' ? 'selected' : '';
+        const isStud = doc.tag === 'student' ? 'selected' : '';
+
         tbody.innerHTML += `
-            <tr class="rag-row" style="border-bottom: var(--border-stroke-hairline);">
-                <td style="padding: 1rem 0.5rem;"><input type="checkbox" class="rag-checkbox" value="${doc.uuid}"></td>
-                <td style="padding: 1rem 0.5rem;">
+            <tr class="rag-row" style="border-bottom: 1px solid var(--border-stroke-hairline);">
+                <td style="padding: 0.5rem;"><input type="checkbox" class="rag-checkbox" value="${doc.uuid}"></td>
+                <td style="padding: 0.5rem;">
                     <span class="rag-title" id="title-${doc.uuid}">${doc.title}</span>
                 </td>
-                <td style="padding: 1rem 0.5rem;">${doc.tag}</td>
-                <td style="padding: 1rem 0.5rem;">${date}</td>
-                <td style="padding: 1rem 0.5rem;">
-                    <button class="btn-xs" onclick="renameRagDoc('${doc.uuid}')" style="display:inline-flex;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                <td style="padding: 0.5rem;">
+                    <!-- Neues Tag Dropdown -->
+                    <select onchange="changeRagTag('${doc.uuid}', this.value)" style="background: transparent; border: 1px solid var(--border-stroke-strong); border-radius: 4px; color: var(--text-color); padding: 4px 6px; font-size: 0.85rem; cursor: pointer; outline: none;">
+                        <option value="professor" style="color: black;" ${isProf}>professor</option>
+                        <option value="student" style="color: black;" ${isStud}>student</option>
+                    </select>
+                </td>
+                <td style="padding: 0.5rem;">${date}</td>
+                <td style="padding: 0.5rem;">
+                    <button class="btn-xs" onclick="renameRagDoc('${doc.uuid}')" style="display:inline-flex; border: 1px solid var(--border-stroke-strong); border-radius: 4px; padding: 4px 8px;">
+                        ✏️ Umbenennen
                     </button>
                 </td>
             </tr>
         `;
     });
+}
+
+// NEU: Ruft das Backend auf, wenn sich das Dropdown ändert
+async function changeRagTag(uuid, newTag) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    try {
+        const response = await fetch(`/req/rag-library/${uuid}/tag`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ tag: newTag })
+        });
+
+        if(!response.ok) throw new Error('Fehler beim Tag Update');
+        // Erfolgreich geändert! Qdrant und MySQL sind nun synchron.
+    } catch(e) {
+        console.error(e);
+        alert("Tag konnte nicht geändert werden.");
+        loadRagLibrary(); // Lädt alte Werte, falls es fehlschlägt
+    }
 }
 
 async function renameRagDoc(uuid) {

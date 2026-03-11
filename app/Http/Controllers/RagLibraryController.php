@@ -62,4 +62,24 @@ class RagLibraryController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    /**
+     * Ändert den Berechtigungs-Tag (Sichtbarkeit)
+     */
+    public function updateTag(Request $request, $uuid)
+    {
+        if (\Illuminate\Support\Facades\Auth::user()->employeetype !== 'professor') abort(403);
+
+        $request->validate(['tag' => 'required|string|in:professor,student']);
+
+        // 1. In MySQL aktualisieren
+        $doc = RagDocument::where('uuid', $uuid)->firstOrFail();
+        $doc->update(['tag' => $request->tag]);
+
+        // 2. In Qdrant aktualisieren
+        $qdrant = new QdrantService();
+        $qdrant->updateTagBySourceFile($uuid, $request->tag);
+
+        return response()->json(['success' => true]);
+    }
 }

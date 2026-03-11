@@ -150,4 +150,25 @@ class QdrantService
             return $item['payload']['text'] ?? '';
         })->toArray();
     }
+    /**
+     * Aktualisiert das Payload (den Tag) aller Vektoren eines bestimmten Dokuments.
+     */
+    public function updateTagBySourceFile(string $uuid, string $newTag): void
+    {
+        $response = \Illuminate\Support\Facades\Http::post("{$this->baseUrl}/collections/{$this->collection}/points/payload?wait=true", [
+            'payload' => [
+                'tag' => $newTag
+            ],
+            'filter' => [
+                'must' => [
+                    ['key' => 'source_file', 'match' => ['value' => $uuid]]
+                ]
+            ]
+        ]);
+
+        if ($response->failed()) {
+            \Illuminate\Support\Facades\Log::error("Qdrant Tag Update Error: " . $response->body());
+            throw new \Exception("Fehler beim Aktualisieren des Tags in Qdrant.");
+        }
+    }
 }

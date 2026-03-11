@@ -77,6 +77,7 @@ Route::middleware('prevent_back')->group(function () {
         Route::get('/req/rag-library', [\App\Http\Controllers\RagLibraryController::class, 'index']);
         Route::put('/req/rag-library/{uuid}', [\App\Http\Controllers\RagLibraryController::class, 'update']);
         Route::post('/req/rag-library/delete', [\App\Http\Controllers\RagLibraryController::class, 'destroy']);
+        Route::put('/req/rag-library/{uuid}/tag', [\App\Http\Controllers\RagLibraryController::class, 'updateTag']);
 
         // AI CONVERSATION ROUTES
         Route::get('/chat', [HomeController::class, 'index']);
