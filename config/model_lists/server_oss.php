@@ -4,7 +4,7 @@ return [
     // Das weiterhin bestehende GPT-OSS-20b
     [
         'active' => true,
-        'id' => 'gpt-oss-20b', // Stelle sicher, dass die ID exakt mit dem Server übereinstimmt
+        'id' => 'gpt-oss-20b', // ID exakt mit dem Server übereinstimmt
         'label' => 'Internal OSS (20B)',
         'input' => ['text'],
         'output' => ['text'],

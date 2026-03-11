@@ -423,6 +423,7 @@ async function generateChatName(firstMessage, convItem) {
         broadcast: false,
         threadIndex: '',
         slug: '',
+        skip_rag: true, // <--- NEU: Überspringt die Vektordatenbank
     };
 
     return new Promise((resolve, reject) => {
