@@ -64,6 +64,27 @@ class QdrantService
         }
     }
 
+     /**
+         * Schritt C: Vektoren anhand der Datei-UUID löschen
+         */
+        public function deleteBySourceFile(string $uuid): void
+        {
+            $response = \Illuminate\Support\Facades\Http::post("{$this->baseUrl}/collections/{$this->collection}/points/delete?wait=true", [
+                'filter' => [
+                    'must' => [
+                        ['key' => 'source_file', 'match' => ['value' => $uuid]]
+                    ]
+                ]
+            ]);
+
+            if ($response->failed()) {
+                \Illuminate\Support\Facades\Log::error("Qdrant Delete Error: " . $response->body());
+                throw new \Exception("Fehler beim Löschen der Vektoren in Qdrant.");
+            }
+
+            \Illuminate\Support\Facades\Log::info("Erfolgreich aus Qdrant gelöscht: Datei " . $uuid);
+        }
+
     /**
      * Helper: Generiert eine deterministische UUID aus Strings (für Qdrant IDs)
      */
@@ -128,5 +149,26 @@ class QdrantService
         return $results->map(function ($item) {
             return $item['payload']['text'] ?? '';
         })->toArray();
+    }
+    /**
+     * Aktualisiert das Payload (den Tag) aller Vektoren eines bestimmten Dokuments.
+     */
+    public function updateTagBySourceFile(string $uuid, string $newTag): void
+    {
+        $response = \Illuminate\Support\Facades\Http::post("{$this->baseUrl}/collections/{$this->collection}/points/payload?wait=true", [
+            'payload' => [
+                'tag' => $newTag
+            ],
+            'filter' => [
+                'must' => [
+                    ['key' => 'source_file', 'match' => ['value' => $uuid]]
+                ]
+            ]
+        ]);
+
+        if ($response->failed()) {
+            \Illuminate\Support\Facades\Log::error("Qdrant Tag Update Error: " . $response->body());
+            throw new \Exception("Fehler beim Aktualisieren des Tags in Qdrant.");
+        }
     }
 }

@@ -182,6 +182,14 @@ class AiConvController extends Controller
                 $result['uuid'],
                 $tag
             );
+
+            // 4. NEU: Metadaten in unsere relationale MySQL-Tabelle (rag_documents) eintragen
+            \App\Models\RagDocument::create([
+                'uuid' => $result['uuid'],
+                'title' => $uploadedFile->getClientOriginalName(), // Speichert z.B. "Skript_Kapitel1.pdf"
+                'tag' => $tag,
+                'user_id' => \Illuminate\Support\Facades\Auth::id()
+            ]);
         }
 
     } catch (Exception $e) {
